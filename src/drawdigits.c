@@ -2,7 +2,6 @@
 #include "drawdigits.h"
 
 /* Custom drawing function passing in GPathInfo; prevent repeating create/destory in each segment */
-
 void custom_draw_gpathinfo(GContext *ctx, GPathInfo *pathinfo) {
 	GPath *t_path = gpath_create(pathinfo);
 	gpath_draw_filled(ctx, t_path);
@@ -196,4 +195,3 @@ void drawdigit(GContext *ctx, int val) {
 			break;
 	}
 }
-
