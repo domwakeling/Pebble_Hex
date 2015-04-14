@@ -5,7 +5,7 @@
 #define DIGIT_HEIGHT 61
 #define SCREEN_WIDTH 144
 #define SCREEN_HEIGHT 168
-#define ANIMATION_TIME 500
+#define ANIMATION_TIME 750				// animation time must be no more than 1000 ms
 
 typedef struct AnimationData {
 	Layer *layerPointer;
@@ -13,7 +13,7 @@ typedef struct AnimationData {
 	GRect from;
 	GRect to;
 } AnimationData;
-	
+
 static Window *main_window;
 static Layer *background_layer;
 static Layer *digitsLayers[4];
@@ -26,7 +26,6 @@ static int layerYPos[4][2] = {{35,35}, {73,SCREEN_HEIGHT}, {35,0 - DIGIT_HEIGHT}
 static AnimationData animationData[4];
 static PropertyAnimation *animations[4][2];
 static bool drawDigits[4];
-
 
 /* background update procedure - sets background to be black */
 void background_update_proc(Layer *l, GContext *ctx) {
@@ -57,7 +56,9 @@ void animateAndIn(Animation *animation, bool finished, void *data) {
 	layer_mark_dirty(digitsLayers[tempData->layerReference]);
 	
 	/* destroy the old in animation, create new in animation */
-	property_animation_destroy(animations[tempData->layerReference][1]);
+	if(animations[tempData->layerReference][1] != NULL) {
+		property_animation_destroy(animations[tempData->layerReference][1]);
+	}
 	animations[tempData->layerReference][1] = property_animation_create_layer_frame(tempData->layerPointer, &tempData->to, &tempData->from);
 	
 	/* set the speed */
@@ -73,8 +74,10 @@ void animateOut(int layer_ref) {
 	/* get a temporary copy of the animation data from the layer_ref */
 	AnimationData *tempData = &animationData[layer_ref];
 	
-	/* destory old out animation, create new out animation */
-	property_animation_destroy(animations[layer_ref][0]);
+	/* destroy old out animation, create new out animation */
+	if(animations[layer_ref][0] != NULL) {
+		property_animation_destroy(animations[layer_ref][0]);
+	}
 	animations[layer_ref][0] = property_animation_create_layer_frame(tempData->layerPointer, &tempData->from, &tempData->to);
 
 	/* set the speed */
@@ -108,10 +111,23 @@ void animateOutAndIn(int layer_ref) {
 	animateOut(layer_ref);
 }
 
+
+GColor digitColour(int layer_ref) {
+	/*#ifdef PBL_COLOR
+	if(layer_ref == 0 || layer_ref == 1) {
+		return GColorPictonBlue;
+	} else {
+		return GColorTiffanyBlue;
+	}
+	#endif*/
+	return GColorWhite;
+}
+
+
 void digits_update_proc(Layer *l, GContext *ctx) {
 	/* set context fill and stroke */
-	graphics_context_set_fill_color(ctx, GColorWhite);
-	graphics_context_set_stroke_color(ctx, GColorWhite);
+	graphics_context_set_fill_color(ctx, digitColour(layer_ref_int(l)));
+	graphics_context_set_stroke_color(ctx, digitColour(layer_ref_int(l)));
 	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	/* get the int from time_buffer char */
@@ -137,16 +153,19 @@ void update_time() {
 	} else {
 		strftime(time_buffer, sizeof(time_buffer), "%I%M", tick_time);
 	}
-	
-	/* animate the digits */
-	for(int i = 0; i < 4; i++) {
-		animateOutAndIn(i);
-	}
 }
 
 
-void tick_handler(struct tm * time_time, TimeUnits units_changed) {
-	update_time();
+void tick_handler(struct tm * tick_time, TimeUnits units_changed) {
+	if(tick_time->tm_sec == 59) {
+		psleep(1000 - ANIMATION_TIME);
+		/* animate the digits */
+		for(int i = 0; i < 4; i++) {
+			animateOutAndIn(i);
+		}
+	} else if(tick_time->tm_sec == 0) {
+		update_time();
+	}
 }
 
 
@@ -180,8 +199,11 @@ void main_window_load() {
 		layer_add_child(window_layer, digitsLayers[i]);
 	}
 	
-	/* Ensure correct time */
-	//update_time();
+	/* Ensure correct time - needed because update_time not called by tick timer unless tm_secs==0 */
+	update_time();
+	for(int i = 0; i < 4; i++) {
+			animateOutAndIn(i);
+	}
 }
 
 
@@ -199,7 +221,6 @@ void main_window_unload() {
 			property_animation_destroy(animations[i][j]);
 		}
 	}
-	
 }
 
 
@@ -214,7 +235,7 @@ void init() {
 	});
 	
 	/* Subscribe to tick_timer */
-	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+	tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
 	
 	/* Push to stack */
 	window_stack_push(main_window, true);
