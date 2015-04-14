@@ -9,11 +9,15 @@
     "resources": {
         "media": []
     },
-    "sdkVersion": "2",
+    "sdkVersion": "3",
     "shortName": "HEX",
+    "targetPlatforms": [
+        "aplite",
+        "basalt"
+    ],
     "uuid": "6dee3339-9f20-4711-8394-7c5a7fd40081",
     "versionCode": 1,
-    "versionLabel": "1.0",
+    "versionLabel": "1.2",
     "watchapp": {
         "watchface": true
     }
