@@ -1,12 +1,47 @@
 #include <pebble.h>
 #include "drawdigits.h"
 
-#define DIGIT_WIDTH 41
-#define DIGIT_HEIGHT 61
+/*****************************************************/
+/************* DEFINE CONSTANTS & COLORS *************/	
+/*****************************************************/
+	
+#define DIGIT_WIDTH 43
+#define DIGIT_HEIGHT 63
 #define SCREEN_WIDTH 144
 #define SCREEN_HEIGHT 168
 #define ANIMATION_TIME 750				// animation time must be no more than 1000 ms
 
+/* function to return the "background" colour dependent on platform */
+GColor background_colour() {
+	#ifdef PBL_COLOR
+		return GColorBlack;
+	#endif
+	return GColorBlack;
+}
+
+/* function to return the "path" colour dependent on platform */
+GColor path_colour() {
+	#ifdef PBL_COLOR
+		return GColorDarkGray;
+	#endif
+	return GColorWhite;
+}
+
+/* function to return the "digit" colour dependent on platform and optionally hours/miutes */
+GColor digit_colour(int layer_ref) {
+	#ifdef PBL_COLOR
+	if(layer_ref == 0 || layer_ref == 1) {
+		// hours colour
+		return GColorChromeYellow;
+	} else {
+		// minutes colour
+		return GColorChromeYellow;
+	}
+	#endif
+	return GColorWhite;
+}
+
+/* define AnimationData struct */
 typedef struct AnimationData {
 	Layer *layerPointer;
 	int layerReference;
@@ -14,26 +49,45 @@ typedef struct AnimationData {
 	GRect to;
 } AnimationData;
 
+/* define objects */
 static Window *main_window;
 static Layer *background_layer;
 static Layer *digitsLayers[4];
 
+/* define char[] to hold time */
 static char time_buffer[] = "0000*";
 
+/* array of ints to define GPoints for the digit GRects - on and off screen */
 static int layerXPos[4][2] = {{4,0 - DIGIT_WIDTH}, {36,36}, {67,67}, {99,SCREEN_WIDTH}};
 static int layerYPos[4][2] = {{35,35}, {73,SCREEN_HEIGHT}, {35,0 - DIGIT_HEIGHT}, {73,73}};
 
+/* arrays  for the animations including bool whether digits should be drawn */
 static AnimationData animationData[4];
 static PropertyAnimation *animations[4][2];
 static bool drawDigits[4];
 
+
+/*****************************************************/
+/************* DRAWING PROC - BACKGROUND *************/	
+/*****************************************************/
+
 /* background update procedure - sets background to be black */
 void background_update_proc(Layer *l, GContext *ctx) {
-	/* make background black */
-	graphics_context_set_fill_color(ctx, GColorBlack);
+	/* fill with the background colour */
+	graphics_context_set_fill_color(ctx, background_colour());
 	graphics_fill_rect(ctx, GRect(0, 0, 144, 168), 0, GCornerNone);
+	
+	/* draw rectangles in path colour*/
+	graphics_context_set_stroke_color(ctx, path_colour());
+	for(int i = 0; i <24; i++) {
+		for(int j = 0; j < 28; j++ )
+			graphics_draw_rect(ctx, GRect(6 * i + 1, 6 * j + 1, 4, 4));
+	}
 }
 
+/*****************************************************/
+/********** DRAWING DIGITS - HELPER METHODS **********/	
+/*****************************************************/
 
 /* helper method to get the digitsLayers[] index from a layer */
 int layer_ref_int(Layer *l) {
@@ -44,7 +98,11 @@ int layer_ref_int(Layer *l) {
 }
 
 
-/* the "draw and animate in" method */
+/*****************************************************/
+/************ DRAWING DIGITS - ANIMATING *************/	
+/*****************************************************/
+
+/* the "draw and animate in" callback method  */
 void animateAndIn(Animation *animation, bool finished, void *data) {
 	/* get a temporary copy of the data, cast as AnimationData so we can read the properties */
 	AnimationData *tempData = (AnimationData *)data;
@@ -55,16 +113,16 @@ void animateAndIn(Animation *animation, bool finished, void *data) {
 	/* mark the layer dirty to actually draw the characters */
 	layer_mark_dirty(digitsLayers[tempData->layerReference]);
 	
-	/* destroy the old in animation, create new in animation */
-	if(animations[tempData->layerReference][1] != NULL) {
-		property_animation_destroy(animations[tempData->layerReference][1]);
-	}
+	/* destroy the old in animation if using Aplite, create new "in"" animation */
+	#ifdef PBL_BW
+		if(animations[tempData->layerReference][1] != NULL) {
+			property_animation_destroy(animations[tempData->layerReference][1]);
+		}
+	#endif
 	animations[tempData->layerReference][1] = property_animation_create_layer_frame(tempData->layerPointer, &tempData->to, &tempData->from);
 	
-	/* set the speed */
+	/* set the speed and schedule animation */
 	animation_set_duration((Animation *)animations[tempData->layerReference][1], ANIMATION_TIME);
-	
-	/* schedule the in animation */
 	animation_schedule((Animation *)animations[tempData->layerReference][1]);
 }
 
@@ -74,10 +132,12 @@ void animateOut(int layer_ref) {
 	/* get a temporary copy of the animation data from the layer_ref */
 	AnimationData *tempData = &animationData[layer_ref];
 	
-	/* destroy old out animation, create new out animation */
+	/* destroy old out animation if using Aplite, create new out animation */
+	#ifdef PBL_BW
 	if(animations[layer_ref][0] != NULL) {
 		property_animation_destroy(animations[layer_ref][0]);
 	}
+	#endif
 	animations[layer_ref][0] = property_animation_create_layer_frame(tempData->layerPointer, &tempData->from, &tempData->to);
 
 	/* set the speed */
@@ -112,22 +172,13 @@ void animateOutAndIn(int layer_ref) {
 }
 
 
-GColor digitColour(int layer_ref) {
-	/*#ifdef PBL_COLOR
-	if(layer_ref == 0 || layer_ref == 1) {
-		return GColorPictonBlue;
-	} else {
-		return GColorTiffanyBlue;
-	}
-	#endif*/
-	return GColorWhite;
-}
+/*****************************************************/
+/*********** DRAWING DIGITS - UPDATE PROC ************/	
+/*****************************************************/
 
-
+/* update proc for digits */
 void digits_update_proc(Layer *l, GContext *ctx) {
-	/* set context fill and stroke */
-	graphics_context_set_fill_color(ctx, digitColour(layer_ref_int(l)));
-	graphics_context_set_stroke_color(ctx, digitColour(layer_ref_int(l)));
+	/* set compositing mode "in case" */
 	graphics_context_set_compositing_mode(ctx, GCompOpSet);
 
 	/* get the int from time_buffer char */
@@ -138,10 +189,16 @@ void digits_update_proc(Layer *l, GContext *ctx) {
 	
 	/* check whether bool tells us to draw the digit, if so draw it */
 	if(drawDigits[layer_ref]) {
-		drawdigit(ctx, val);
+		drawdigit(ctx, val, digit_colour(layer_ref_int(l)), background_colour());
 	}
 }
 
+
+/*****************************************************/
+/************* DEAL WITH CHANGING TIME ***************/	
+/*****************************************************/
+
+/* update the time in time_buffer - called in tick handler */
 void update_time() {
 	/* Get a tm struct */
 	time_t temp = time(NULL);
@@ -155,19 +212,28 @@ void update_time() {
 	}
 }
 
-
+/* tick handler - call animation and/or update time_buffer as appropriate*/
 void tick_handler(struct tm * tick_time, TimeUnits units_changed) {
+	/* if secs == 59, queue animation so we're out at secs == 0 */
 	if(tick_time->tm_sec == 59) {
+		
+		/* pause for balance so animate in starts at 00 - why ANIMATION_TIME must be no more than 1000ms */
 		psleep(1000 - ANIMATION_TIME);
-		/* animate the digits */
+		
+		/* start animating the digits */
 		for(int i = 0; i < 4; i++) {
 			animateOutAndIn(i);
 		}
 	} else if(tick_time->tm_sec == 0) {
+		/* otherwise, if we're at the second, update time_buffer so time is drawn correctly when animating in */
 		update_time();
 	}
 }
 
+
+/*****************************************************/
+/************* WINDOW HANDLER CALLBACKS **************/	
+/*****************************************************/
 
 void main_window_load() {
 	/* Get a layer for the window to simplify adding layers */
@@ -215,14 +281,20 @@ void main_window_unload() {
 		layer_destroy(digitsLayers[i]);
 	}
 	
-	/* destroy animations */
+	/* destroy animations if we're using Aplite */
+	#ifdef PBL_BW
 	for(int i = 0; i < 4; i++) {
 		for(int j = 0; j < 2; j++) {
 			property_animation_destroy(animations[i][j]);
 		}
 	}
+	#endif
 }
 
+
+/*****************************************************/
+/*************** INIT, DEINIT & MAIN *****************/	
+/*****************************************************/
 
 void init() {
 	/* Create main window */
