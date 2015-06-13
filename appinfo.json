@@ -7,7 +7,14 @@
     "longName": "HEX",
     "projectType": "native",
     "resources": {
-        "media": []
+        "media": [
+            {
+                "file": "images/HEX_1_0_1857_28SQ.png",
+                "menuIcon": true,
+                "name": "MENU_IMAGE_28SQ",
+                "type": "png"
+            }
+        ]
     },
     "sdkVersion": "3",
     "shortName": "HEX",
@@ -16,7 +23,6 @@
         "basalt"
     ],
     "uuid": "6dee3339-9f20-4711-8394-7c5a7fd40081",
-    "versionCode": 1,
     "versionLabel": "1.3",
     "watchapp": {
         "watchface": true

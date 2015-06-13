@@ -16,29 +16,39 @@ GColor background_colour() {
 	#ifdef PBL_COLOR
 		return GColorBlack;
 	#endif
-	return GColorBlack;
+	return GColorBlack; // changed for release of 1.3
 }
 
 /* function to return the "path" colour dependent on platform */
 GColor path_colour() {
 	#ifdef PBL_COLOR
-		return GColorDarkGray;
+		return GColorBlack;  // changed for release of 1.3
 	#endif
-	return GColorWhite;
+	return GColorBlack;  // changed for release of 1.3
 }
 
-/* function to return the "digit" colour dependent on platform and optionally hours/miutes */
+/* function to return the "shadow" colour of digits */
+GColor stroke_colour() {
+	#ifdef PBL_COLOR
+		return background_colour();
+	#endif
+	return GColorBlack; // changed for release of 1.3
+}
+
+/* function to return the "digit" colour dependent on platform and optionally hours/minutes */
 GColor digit_colour(int layer_ref) {
 	#ifdef PBL_COLOR
 	if(layer_ref == 0 || layer_ref == 1) {
 		// hours colour
-		return GColorChromeYellow;
+		//return GColorChromeYellow; // changed for release of 1.3
+		return GColorWhite;
 	} else {
 		// minutes colour
-		return GColorChromeYellow;
+		//return GColorOrange;
+		return GColorWhite;  // changed for release of 1.3
 	}
 	#endif
-	return GColorWhite;
+	return GColorWhite;  // changed for release of 1.3
 }
 
 /* define AnimationData struct */
@@ -189,7 +199,7 @@ void digits_update_proc(Layer *l, GContext *ctx) {
 	
 	/* check whether bool tells us to draw the digit, if so draw it */
 	if(drawDigits[layer_ref]) {
-		drawdigit(ctx, val, digit_colour(layer_ref_int(l)), background_colour());
+		drawdigit(ctx, val, digit_colour(layer_ref_int(l)), stroke_colour());
 	}
 }
 
