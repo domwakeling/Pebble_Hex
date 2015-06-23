@@ -1,7 +1,15 @@
 {
-    "appKeys": {},
+    "appKeys": {
+        "KEY_BACKGROUND_COLOUR": 3,
+        "KEY_HOUR_COLOUR": 1,
+        "KEY_INVERT_BW": 6,
+        "KEY_MINUTE_COLOUR": 2,
+        "KEY_PATTERN_COLOUR": 4,
+        "KEY_SHOW_BLUETOOTH": 0,
+        "KEY_SHOW_PATTERN": 5
+    },
     "capabilities": [
-        ""
+        "configurable"
     ],
     "companyName": "Dom Wakeling",
     "longName": "HEX",
@@ -23,7 +31,7 @@
         "basalt"
     ],
     "uuid": "6dee3339-9f20-4711-8394-7c5a7fd40081",
-    "versionLabel": "1.3",
+    "versionLabel": "1.4",
     "watchapp": {
         "watchface": true
     }
