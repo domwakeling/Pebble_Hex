@@ -48,6 +48,7 @@ const uint32_t STORAGE_FIRST_RUN = 16;
 #define BT_WIDTH 5
 #define VERT_OFF 4
 #define HORZ_OFF 4
+#define LEFT_OFF 1
 
 /* local variables to hold persists to prevent continuously reading them */
 int colours[4][3];
@@ -330,7 +331,7 @@ void bluetooth_update_proc(Layer *l, GContext *ctx) {
 		graphics_context_set_stroke_color(ctx, background_colour());
 	
 		// stroke an outline ...
-		graphics_fill_rect(ctx, GRect(0,0,2 * (BT_WIDTH + HORZ_OFF), 4 * BT_HEIGHT + 2 * VERT_OFF), 5, GCornersAll);
+		graphics_fill_rect(ctx, GRect(LEFT_OFF,0,2 * (BT_WIDTH + HORZ_OFF) - LEFT_OFF, 4 * BT_HEIGHT + 2 * VERT_OFF), 5, GCornersAll);
 		
 		// set context fill and stroke to hour colour
 		graphics_context_set_fill_color(ctx, digit_colour(0));
