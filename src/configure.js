@@ -17,10 +17,10 @@ Pebble.addEventListener("showConfiguration", function() {
 	
 	if(watch_type >= 3) {
 		console.log("showing configuration for basalt");
-		Pebble.openURL('http://www.domwakeling.com/pebble/hex/hex_1_4_col.html?'+encodeURIComponent(JSON.stringify(options)));
+		Pebble.openURL('http://www.domwakeling.com/pebble/hex/hex_1_5_col.html?'+encodeURIComponent(JSON.stringify(options)));
 	} else {
 		console.log("showing configuration for aplite");
-		Pebble.openURL('http://www.domwakeling.com/pebble/hex/hex_1_4_bw.html?'+encodeURIComponent(JSON.stringify(options)));
+		Pebble.openURL('http://www.domwakeling.com/pebble/hex/hex_1_5_bw.html?'+encodeURIComponent(JSON.stringify(options)));
 	}
 });
 
@@ -42,23 +42,42 @@ Pebble.addEventListener("webviewclosed", function(e) {
 		
 		// we want to make a dictionary from the available information, so get the values as variables ...
 		
-		var hourcolour = options.basalt_colors.substring(0,6);
-		var minutecolour = options.basalt_colors.substring(6,12);
-		var bgcolour = options.basalt_colors.substring(12,18);
-		var patterncolour = options.basalt_colors.substring(18,24);
+		var hourcolour;
+		var minutecolour;
+		var bgcolour;
+		var patterncolour;
 		
 		if( watch_type >= 3) {
+			hourcolour = options.hourcolour.toString().slice(2);
+			minutecolour = options.minutecolour.toString().slice(2);
+			bgcolour = options.bgcolour.toString().slice(2);
+			patterncolour = options.patterncolour.toString().slice(2);
 			console.log("hour colour selected: " + hourcolour);
 			console.log("minute colour selected: " + minutecolour);
 			console.log("background colour selected: " + bgcolour);
 			console.log("pattern colour selected: " + patterncolour);
 		}
 		
-		var bluetoothshowing = options.showbluetooth;
+		var bluetoothshowing;
+		if( options.showbluetooth == "checked") {
+			bluetoothshowing = "on";
+		} else {
+			bluetoothshowing = "off";
+		}
 		console.log("bluetoothshowing: " + bluetoothshowing);
 		
-		var patternvisible = options.patternbackground;
-		var invertbw = options.invertcolours;
+		var patternvisible;
+		if( options.patternbackground == "checked") {
+			patternvisible = "on";
+		} else {
+			patternvisible = "off";
+		}
+		var invertbw;
+		if( options.invertcolours == "checked") {
+			invertbw = "on";
+		} else {
+			invertbw = "off";
+		}
 		
 		if( watch_type < 3) {
 			console.log("patternvisible: " + patternvisible);
