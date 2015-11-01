@@ -124,14 +124,19 @@ function getWatchVersion() {
 	// 3 = Pebble Time
 	// 3 = Pebble Basalt Emulator (currently Pebble Time)
 	// 4 = Pebble Time Steel
+	// 5 = Pebble Time Round
+	// 5 = Pebble Time Emulator
 	
 	var watch_version = 1;
  
 	if(Pebble.getActiveWatchInfo) {
 		// Available for use!
 		var watch_name = Pebble.getActiveWatchInfo().model;
- 
-		if (watch_name.indexOf("pebble_time_steel") >= 0) {
+ 		if (watch_name.indexOf("pebble_time_round") >= 0) {
+			watch_version = 5;
+		} else if (watch_name.indexOf("qemu_platform_chalk") >= 0) {
+			watch_version = 5;
+		} else if (watch_name.indexOf("pebble_time_steel") >= 0) {
 			watch_version = 4;
 		} else if (watch_name.indexOf("pebble_time") >= 0) {
 			watch_version = 3;
@@ -140,7 +145,8 @@ function getWatchVersion() {
 		} else if (watch_name.indexOf("pebble_steel") >= 0) {
 			watch_version = 2;
 		}
+		console.log("watch name " + watch_name + ", watch version " + watch_version);
 	}
-	
 	return watch_version;
 }
+

@@ -46,7 +46,6 @@ void draw_mid_bar_outline(GContext *ctx, GColor back) {
 	custom_draw_gpathinfo(ctx, &TEMP);
 }
 
-
 void draw_bot_bar(GContext *ctx, GColor fore) {
 	GPathInfo TEMP = {
 		.num_points = 4,
@@ -266,7 +265,6 @@ void draw_nine(GContext *ctx, GColor fore, GColor back) {
 	draw_top_right(ctx, fore);
 	draw_bot_right(ctx, fore);
 }
-
 
 /* *** Public function to call relevant draw function *** */
 

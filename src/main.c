@@ -3,11 +3,11 @@
 #include "colourconversion.h"
 #include "persistboollog.h"
 
-/*****************************************************/
-/***************** DEFINE KEY VALUES *****************/	
-/*****************************************************/
+/*** DEBUG MODE ***/
+//#define DEBUG
 
-/* key values for communication with settings screen via Javascript */
+/*** KEY VALUES THROUGH DEFINES ***/									// key values for communication with settings screen via Javascript
+
 #define KEY_SHOW_BLUETOOTH 0
 #define KEY_HOUR_COLOUR 1
 #define KEY_MINUTE_COLOUR 2
@@ -16,7 +16,8 @@
 #define KEY_SHOW_PATTERN 5
 #define KEY_INVERT_BW 6
 
-/* key values for persistant storage */
+/*** KEY VALUES THROUGH DECLARATIONS ***/						// key values for persistant storage
+
 const uint32_t STORAGE_BLUETOOTH_VISIBLE = 1;
 const uint32_t STORAGE_HOUR_COLOUR_RED = 2;
 const uint32_t STORAGE_HOUR_COLOUR_GREEN = 3;
@@ -34,27 +35,81 @@ const uint32_t STORAGE_PATTERN_VISIBLE = 14;
 const uint32_t STORAGE_INVERT_BW = 15;
 const uint32_t STORAGE_FIRST_RUN = 16;
 
+/*** CONSTANTS THROUGH DEFINES - DIGITS ***/	
 
-/*****************************************************/
-/************* DEFINE CONSTANTS & COLORS *************/	
-/*****************************************************/
-	
 #define DIGIT_WIDTH 43
 #define DIGIT_HEIGHT 63
-#define SCREEN_WIDTH 144
-#define SCREEN_HEIGHT 168
-#define ANIMATION_TIME 750				// animation time must be no more than 1000 ms
+#define D0_X_OFF -67
+#define D1_X_OFF -35
+#define D2_X_OFF -4
+#define D3_X_OFF 28
+#define D_02_Y_OFF -49
+#define D_13_Y_OFF -11
+
+/*** CONSTANTS THROUGH DEFINES - "PATH" ***/
+
+#define PATH_SIZE 4
+#define PATH_PAD 1
+
+/*** CONSTANTS THROUGH DEFINES - BLUETOOTH LOGO ***/
+
 #define BT_HEIGHT 4
-#define BT_WIDTH 5
+#define BT_WIDTH 4
 #define VERT_OFF 4
 #define HORZ_OFF 4
+#define VERT_OFF_RD 8
 #define LEFT_OFF 1
 
-/* local variables to hold persists to prevent continuously reading them */
+/*** CONSTANTS THROUGH DEFINES - ANIMATION ***/
+
+#define ANIMATION_TIME 750														// animation time must be no more than 1000 ms
+
+/*** CONSTANTS THROUGH DEFINES - MESSAGE SIZES ***/
+
+#define MSG_INBOX 64
+#define MSG_OUTBOX 64
+
+/*** DUMMY DECLARATION OF FUNCTIONS ***/
+int screen_h();
+int screen_w();
+
+/*** DEFINITION OF ANIMATIONDATA STRUCT */
+
+typedef struct AnimationData {
+	Layer *layerPointer;
+	int layerReference;
+	GRect from;
+	GRect to;
+} AnimationData;
+
+/*** VARIABLES & OBJECTS VIA DECLARATION ***/
+
+// persistent data information
 int colours[4][3];
 bool bluetoothactive;
 bool inverted;
 bool patterned;
+
+bool bluetooth_connected = false;
+
+static char time_buffer[] = "0000*";
+
+// arrays  for the animations including bool whether digits should be drawn
+static AnimationData animationData[4];
+static PropertyAnimation *animations[4][2];
+static bool drawDigits[4];
+
+// int to store returned values when persistant logging bools
+int bool_log_return;
+
+// char pointer for dealing with colour conversion from hex
+char *colour_hex_buffer_pointer;
+static Window *main_window;
+static Layer *background_layer;
+static Layer *digitsLayers[4];
+static Layer *bluetooth_layer;
+	
+/*** HELPER FUNCTIONS ***/
 
 void populate_locals_from_persists() {
 	colours[0][0] = persist_read_to_255(persist_read_int(STORAGE_HOUR_COLOUR_RED));
@@ -74,7 +129,7 @@ void populate_locals_from_persists() {
 	patterned = persist_read_bool(STORAGE_PATTERN_VISIBLE);
 }
 
-/* function to return the "background" colour dependent on platform */
+// function to return the "background" colour dependent on platform
 GColor background_colour() {
 	#ifdef PBL_COLOR
 		// read the current persistant RGB (which will be 0,1,2,3) and convert to 0-255
@@ -93,7 +148,7 @@ GColor background_colour() {
 	#endif
 }
 
-/* function to return the "path" colour dependent on platform */
+// function to return the "path" (contrast background) colour dependent on platform
 GColor path_colour() {
 	#ifdef PBL_COLOR
 		// read the current persistant RGB (which will be 0,1,2,3) and convert to 0-255
@@ -114,12 +169,12 @@ GColor path_colour() {
 	#endif
 }
 
-/* function to return the "shadow" colour of digits */
+// function to return the "shadow" colour of digits - which is hte same as background colour
 GColor stroke_colour() {
 	return background_colour();
 }
 
-/* function to return the "digit" colour dependent on platform and optionally hours/minutes */
+// function to return the "digit" colour dependent on platform and optionally hours/minutes
 GColor digit_colour(int layer_ref) {
 	#ifdef PBL_COLOR
 		if(layer_ref == 0 || layer_ref == 1) {
@@ -147,69 +202,105 @@ GColor digit_colour(int layer_ref) {
 		}
 }
 
-/* define AnimationData struct */
-typedef struct AnimationData {
-	Layer *layerPointer;
-	int layerReference;
-	GRect from;
-	GRect to;
-} AnimationData;
-
-
-/*****************************************************/
-/************* DEFINE VARIABLES & OBJECTS ************/	
-/*****************************************************/
-
-/* define objects */
-static Window *main_window;
-static Layer *background_layer;
-static Layer *digitsLayers[4];
-static Layer *bluetooth_layer;
-
-/* define char[] to hold time */
-static char time_buffer[] = "0000*";
-
-/* array of ints to define GPoints for the digit GRects - on and off screen */
-static int layerXPos[4][2] = {{4,0 - DIGIT_WIDTH}, {36,36}, {67,67}, {99,SCREEN_WIDTH}};
-static int layerYPos[4][2] = {{35,35}, {73,SCREEN_HEIGHT}, {35,0 - DIGIT_HEIGHT}, {73,73}};
-
-/* arrays  for the animations including bool whether digits should be drawn */
-static AnimationData animationData[4];
-static PropertyAnimation *animations[4][2];
-static bool drawDigits[4];
-
-/* bool to hold whether bluetooth is connected or not */
-bool bluetooth_connected = false;
-
-/* int to store returned values when persistant logging bools */
-int bool_log_return;
-
-/* char pointer for dealing with colour conversion from hex */
-char *colour_hex_buffer_pointer;
-
-/*****************************************************/
-/************* DRAWING PROC - BACKGROUND *************/	
-/*****************************************************/
-
-/* background update procedure - sets background to be black */
-void background_update_proc(Layer *l, GContext *ctx) {
-	/* fill with the background colour */
-	graphics_context_set_fill_color(ctx, background_colour());
-	graphics_fill_rect(ctx, GRect(0, 0, 144, 168), 0, GCornerNone);
-	
-	/* draw rectangles in path colour*/
-	graphics_context_set_stroke_color(ctx, path_colour());
-	for(int i = 0; i <24; i++) {
-		for(int j = 0; j < 28; j++ )
-			graphics_draw_rect(ctx, GRect(6 * i + 1, 6 * j + 1, 4, 4));
-	}
+// function to return the screen height
+int screen_h() {
+	GRect bounds = layer_get_bounds(window_get_root_layer(main_window));
+	return bounds.size.h;
 }
 
-/*****************************************************/
-/********** DRAWING DIGITS - HELPER METHODS **********/	
-/*****************************************************/
+// function to return the screen width
+int screen_w() {
+	GRect bounds = layer_get_bounds(window_get_root_layer(main_window));
+	return bounds.size.w;
+}
 
-/* helper method to get the digitsLayers[] index from a layer */
+// function to return the xPos of layer in either "on" or "animated off" position
+int layer_xPos(int digit, int on_off) {
+	
+	int xMid = screen_w() / 2;
+	
+	switch(digit) {
+		
+		case 0:
+			if(on_off == 0) {
+				return xMid + D0_X_OFF;
+			} else if(on_off == 1) {
+				return 0 - DIGIT_WIDTH;
+			} else {
+				return 0;
+			}
+			break;
+		
+		case 1:
+			return xMid + D1_X_OFF;
+			break;
+		
+		case 2:
+			return xMid + D2_X_OFF;
+			break;
+		
+		case 3:
+			if(on_off == 0) {
+				return xMid + D3_X_OFF;
+			} else if(on_off == 1) {
+				return screen_w();;
+			} else {
+				return 0;
+			}
+			break;
+		
+		default:
+			return 0;
+			break;
+		
+	}
+	
+}
+
+// function to return the yPos of layer in either "on" or "animated off" position
+int layer_yPos(int digit, int on_off) {
+	
+	int yMid = screen_h() / 2;
+	
+	switch(digit) {
+	
+		case 0:
+			return yMid + D_02_Y_OFF;
+			break;
+		
+		case 1:
+			if(on_off == 0) {
+				return yMid + D_13_Y_OFF;
+			} else if(on_off == 1) {
+				return screen_h();
+			} else {
+				return 0;
+			}
+			break;
+		
+		case 2:
+			if(on_off == 0) {
+				return yMid + D_02_Y_OFF;
+			} else if(on_off == 1) {
+				return 0 - DIGIT_HEIGHT;
+			} else {
+				return 0;
+			}
+			break;
+		
+		case 3:
+			return yMid + D_13_Y_OFF;
+			break;
+		
+		default:
+			return 0;
+			break;
+		
+	}
+	
+}
+
+// function to get the digitsLayers[] index from a layer
 int layer_ref_int(Layer *l) {
 	for(int i = 0; i < 4; i++) {
 		if( l == digitsLayers[i]) return i;
@@ -217,12 +308,9 @@ int layer_ref_int(Layer *l) {
 	return -1;		// this statement should never be reached, and will crash the app
 }
 
+/*** DIGIT ANIMATION ***/	
 
-/*****************************************************/
-/************ DRAWING DIGITS - ANIMATING *************/	
-/*****************************************************/
-
-/* the "draw and animate in" callback method  */
+// the "draw and animate in" callback method
 void animateAndIn(Animation *animation, bool finished, void *data) {
 	/* get a temporary copy of the data, cast as AnimationData so we can read the properties */
 	AnimationData *tempData = (AnimationData *)data;
@@ -246,8 +334,7 @@ void animateAndIn(Animation *animation, bool finished, void *data) {
 	animation_schedule((Animation *)animations[tempData->layerReference][1]);
 }
 
-
-/* the "animate out" method */
+// the "animate out" method
 void animateOut(int layer_ref) {
 	/* get a temporary copy of the animation data from the layer_ref */
 	AnimationData *tempData = &animationData[layer_ref];
@@ -273,13 +360,12 @@ void animateOut(int layer_ref) {
 	animation_schedule((Animation *)animations[layer_ref][0]);
 }
 
-
-/* sets details for the animation (in animationData struct) before calling the first animation */
+// set details for the animation in an animationData struct before calling the first animation
 void animateOutAndIn(int layer_ref) {
 
 	/* get the frames from and to */
-	GRect frameFrom = GRect(layerXPos[layer_ref][0], layerYPos[layer_ref][0], DIGIT_WIDTH, DIGIT_HEIGHT);
-	GRect frameTo = GRect(layerXPos[layer_ref][1], layerYPos[layer_ref][1], DIGIT_WIDTH, DIGIT_HEIGHT);
+	GRect frameFrom = GRect(layer_xPos(layer_ref,0), layer_yPos(layer_ref,0), DIGIT_WIDTH, DIGIT_HEIGHT);
+	GRect frameTo = GRect(layer_xPos(layer_ref,1), layer_yPos(layer_ref,1), DIGIT_WIDTH, DIGIT_HEIGHT);
 
 	/* set info for an AnimationData struct in array */
 	animationData[layer_ref].layerPointer = digitsLayers[layer_ref];
@@ -291,12 +377,24 @@ void animateOutAndIn(int layer_ref) {
 	animateOut(layer_ref);
 }
 
+/*** LAYER UPDATE PROCS ***/	
 
-/*****************************************************/
-/*********** DRAWING DIGITS - UPDATE PROC ************/	
-/*****************************************************/
+void background_update_proc(Layer *l, GContext *ctx) {
+	/* fill with the background colour */
+	graphics_context_set_fill_color(ctx, background_colour());
+	graphics_fill_rect(ctx, GRect(0, 0, screen_w(), screen_h()), 0, GCornerNone);
+	
+	/* draw rectangles in path colour*/
+	graphics_context_set_stroke_color(ctx, path_colour());
+	int path_dim = PATH_SIZE + 2 * PATH_PAD;
+	int across = screen_w() / path_dim;
+	int down = screen_h() / path_dim;
+	for(int i = 0; i < across; i++) {
+		for(int j = 0; j <  down; j++ )
+			graphics_draw_rect(ctx, GRect(path_dim * i + 1, path_dim * j + 1, PATH_SIZE, PATH_SIZE));
+	}
+}
 
-/* update proc for digits */
 void digits_update_proc(Layer *l, GContext *ctx) {
 	/* set compositing mode "in case" */
 	graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -313,12 +411,6 @@ void digits_update_proc(Layer *l, GContext *ctx) {
 	}
 }
 
-
-/*****************************************************/
-/*********** DRAW BLUETOOTH - UPDATE PROC ************/	
-/*****************************************************/
-
-/* update proc for bluetooth */
 void bluetooth_update_proc(Layer *l, GContext *ctx) {
 	
 	// check whether we are configured to draw bluetooth
@@ -349,12 +441,9 @@ void bluetooth_update_proc(Layer *l, GContext *ctx) {
 	
 }
 
+/*** DEAL WITH CHANGING TIME ***/	
 
-/*****************************************************/
-/************* DEAL WITH CHANGING TIME ***************/	
-/*****************************************************/
-
-/* update the time in time_buffer - called in tick handler */
+// update the time in time_buffer, called from tick_handler - putting it on screen comes naturally elsewhere
 void update_time() {
 	/* Get a tm struct */
 	time_t temp = time(NULL);
@@ -368,7 +457,7 @@ void update_time() {
 	}
 }
 
-/* tick handler - call animation and/or update time_buffer as appropriate*/
+// tick handler - call animation and/or update time_buffer as appropriate
 void tick_handler(struct tm * tick_time, TimeUnits units_changed) {
 	/* if secs == 59, queue animation so we're out at secs == 0 */
 	if(tick_time->tm_sec == 59) {
@@ -386,10 +475,7 @@ void tick_handler(struct tm * tick_time, TimeUnits units_changed) {
 	}
 }
 
-
-/*****************************************************/
-/************* WINDOW HANDLER CALLBACKS **************/	
-/*****************************************************/
+/*** WINDOW HANDLERS ***/	
 
 void main_window_load() {
 	/* Get a layer for the window to simplify adding layers */
@@ -422,14 +508,22 @@ void main_window_load() {
 		persist_write_bool(STORAGE_FIRST_RUN, true);
 	}
 	
+	#ifdef DEBUG
+		persist_write_bool(STORAGE_BLUETOOTH_VISIBLE, true);
+	#endif
+	
 	/* having made sure our persists are correct, read them into local store */
 	populate_locals_from_persists();
 	
 	/* Create the layers */
-	background_layer = layer_create(GRect(0, 0, 144, 168));
-	bluetooth_layer = layer_create(GRect(SCREEN_WIDTH - 2 * BT_WIDTH - 3 * HORZ_OFF, VERT_OFF, 2*(BT_WIDTH + HORZ_OFF), 4*BT_HEIGHT + 2*VERT_OFF));
+	background_layer = layer_create(GRect(0, 0, screen_w(), screen_h()));
+	#ifdef PBL_ROUND
+	bluetooth_layer = layer_create(GRect(screen_w() / 2 + D2_X_OFF - 2 * BT_WIDTH - 4 * HORZ_OFF, VERT_OFF_RD, 2*(BT_WIDTH + HORZ_OFF), 4*BT_HEIGHT + 2*VERT_OFF));
+	#else
+	bluetooth_layer = layer_create(GRect(screen_w() - 2 * BT_WIDTH - 3 * HORZ_OFF, VERT_OFF, 2*(BT_WIDTH + HORZ_OFF), 4*BT_HEIGHT + 2*VERT_OFF));
+	#endif
 	for(int i = 0; i < 4; i++) {
-		digitsLayers[i] = layer_create(GRect(layerXPos[i][0], layerYPos[i][0], DIGIT_WIDTH, DIGIT_HEIGHT));
+		digitsLayers[i] = layer_create(GRect(layer_xPos(i,0), layer_yPos(i,0), DIGIT_WIDTH, DIGIT_HEIGHT));
 	}
 	
 	/* Set update_proc for graphics layers */
@@ -453,7 +547,6 @@ void main_window_load() {
 	}
 }
 
-
 void main_window_unload() {
 	/* Remove all the layers */
 	layer_destroy(background_layer);
@@ -472,24 +565,17 @@ void main_window_unload() {
 	#endif
 }
 
+/*** BLUETOOTH HANDLER ***/	
 
-/*****************************************************/
-/**************** BLUETOOTH HANDLER ******************/	
-/*****************************************************/
-
-/* bluetooth handler for bluetooth subscription */
 void bt_handler(bool connected) {
 	// whatever the connected state is, pass it to bluetooth_connected and update time to reflect on screen
 	bluetooth_connected = connected;
 	layer_mark_dirty(bluetooth_layer);
 }
 
+/*** COMMUNICATION HANDLER CALLBACKS ***/	
 
-/*****************************************************/
-/********* COMMUNICATION HANDLER CALLBACKS ***********/	
-/*****************************************************/
-
-/*inbox received callback, deal with successful receipt of message from phone */
+// inbox received callback, deal with successful receipt of message from phone
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
 
 	// before we do anything else, make necessary temporary variables (only required for colours)
@@ -607,15 +693,12 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	}
 }
 
-/* inbox dropped callback - logs a message that there's been an error */
+// inbox dropped callback - logs a message that there's been an error
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
 	APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped");
 }
 
-
-/*****************************************************/
-/*************** INIT, DEINIT & MAIN *****************/	
-/*****************************************************/
+/*** INIT, DEINIT & MAIN ***/	
 
 void init() {
 	/* Create main window */
@@ -635,7 +718,8 @@ void init() {
 	app_message_register_inbox_dropped(inbox_dropped_callback);
 	
 	// open AppMessage
-	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+	//app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());	// this is now frowned on
+	app_message_open(MSG_INBOX, MSG_OUTBOX);
 	
 	// check whether bluetooth display is active and if so set it up
 	if(persist_read_bool(STORAGE_BLUETOOTH_VISIBLE)) {
@@ -647,12 +731,10 @@ void init() {
 	window_stack_push(main_window, true);
 }
 
-
 void deinit() {
 	window_destroy(main_window);
 	tick_timer_service_unsubscribe();
 }
-
 
 int main() {
 	init();
